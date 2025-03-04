@@ -1,23 +1,33 @@
-import { Pokemon } from "@/pokemons";
-import { Metadata } from "next";
 import Image from "next/image";
+import { Pokemon } from "@/pokemons";
 import { notFound } from "next/navigation";
+import { Metadata } from "next";
 
 interface Props {
-  params: { id: string }
+  params: Promise<{ id: string }>;
 }
 
+//! Executed only in build time
+export async function generateStaticParams() {
+
+  const static151Pokemons = Array.from({ length: 151 }).map((v, i) => `${i + 1}`);
+
+  return static151Pokemons.map(id => ({
+    id: id,
+  }));
+}
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   try {
-    const { id, name, } = await getPokemon(params.id);
+    const { id, name, } = await getPokemon((await params).id);
 
     return {
       title: `#${id} - ${name}`,
       description: `Page of Pokemon ${name}`
     }
   } catch (error) {
+    console.log(error);
     return {
       title: 'Pokemon page',
       description: 'Pokemon description page'
@@ -26,25 +36,26 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 const getPokemon = async (id: string): Promise<Pokemon> => {
-  
+
   try {
     const pokemon = await fetch(`https://pokeapi.co/api/v2/pokemon/${id}`, {
-      cache: 'force-cache' //TODO: change this in a future
-      // next: {
-      //   revalidate: 30 * 30 * 60 * 6
-      // }
+      // cache: 'force-cache', //TODO: change this in a future
+      next: {
+        revalidate: 60 * 60 * 30 * 6
+      }
     }).then(resp => resp.json());
-  
+
     console.log('It was loading', pokemon.name)
     return pokemon;
   } catch (error) {
+    console.log(error);
     notFound();
   }
 }
 
 export default async function PokemonPage({ params }: Props) {
 
-  const pokemon = await getPokemon(params.id);
+  const pokemon = await getPokemon((await params).id);
 
 
   return (
